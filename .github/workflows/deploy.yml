@@ -14,7 +14,12 @@ jobs:
     steps:
     - uses: actions/checkout@v3
       with:
-        submodules: true
+        submodules: recursive
+        fetch-depth: 0
+
+    - name: Update submodules to latest
+      run: |
+        git submodule update --init --remote
 
     - name: Download PaperInk theme
       run: |
