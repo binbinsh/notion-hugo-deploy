@@ -9,13 +9,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Build static site**: `hugo --minify`
 - **Docker build/run**:
   ```bash
-  docker build -t notion-hugo-sync .
+  docker build -t notion-hugo-deploy .
   docker run \
     -e NOTION_TOKEN=... \
     -e NOTION_DATABASE_ID=... \
     -v "$PWD/content":/app/content \
     -v "$PWD/static":/app/static \
-    notion-hugo-sync
+    notion-hugo-deploy
   ```
 - **Deploy via GitHub Actions**: workflow located at `/.github/workflows/deploy.yml`.
 

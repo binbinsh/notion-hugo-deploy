@@ -1,8 +1,9 @@
 version: '3.8'
 
 services:
-  notion-hugo-sync:
+  notion-hugo-deploy:
     build: .
+    container_name: notion-hugo-deploy
     environment:
       - NOTION_TOKEN=${NOTION_TOKEN}
       - NOTION_DATABASE_ID=${NOTION_DATABASE_ID}

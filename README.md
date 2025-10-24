@@ -1,4 +1,4 @@
-# Notion-Hugo Blog Sync
+# Notion-Hugo Deploy
 
 Sync your Notion database to a Hugo static site. Write in Notion, publish with Hugo.
 
@@ -27,8 +27,8 @@ Sync your Notion database to a Hugo static site. Write in Notion, publish with H
 ### 1) Clone
 
 ```bash
-git clone https://github.com/trainsh/notion-hugo-blog.git
-cd notion-hugo-blog
+git clone https://github.com/trainsh/notion-hugo-deploy.git
+cd notion-hugo-deploy
 ```
 
 ### 2) One-time setup (recommended)
@@ -130,13 +130,13 @@ Compose uses `${NOTION_TOKEN}` and `${NOTION_DATABASE_ID}` from your shell or `.
 Run the image directly:
 
 ```bash
-docker build -t notion-hugo-sync .
+docker build -t notion-hugo-deploy .
 docker run \
   -e NOTION_TOKEN=your_token \
   -e NOTION_DATABASE_ID=your_db_id \
   -v "$PWD/content":/app/content \
   -v "$PWD/static":/app/static \
-  notion-hugo-sync
+  notion-hugo-deploy
 ```
 
 ## 🚢 Deployment: Cloudflare Pages (GitHub Actions)
@@ -162,7 +162,7 @@ The workflow is triggered on pushes to `main`, on a 6-hourly schedule, and via m
 ## 📁 Project Structure
 
 ```
-notion-hugo-blog/
+notion-hugo-deploy/
 ├── config.toml                 # Hugo config example
 ├── content/                    # Generated posts
 │   └── posts/
@@ -241,8 +241,8 @@ limitations under the License.
 
 ## 📮 Support
 
-- Create an Issue: `https://github.com/trainsh/notion-hugo-blog/issues`
-- Start a Discussion: `https://github.com/trainsh/notion-hugo-blog/discussions`
+- Create an Issue: `https://github.com/trainsh/notion-hugo-deploy/issues`
+- Start a Discussion: `https://github.com/trainsh/notion-hugo-deploy/discussions`
 
 ---
 

@@ -1,7 +1,7 @@
 #!/bin/bash
 
-echo "🚀 Notion-Hugo Blog Setup"
-echo "========================"
+echo "🚀 Notion-Hugo Deploy Setup"
+echo "==========================="
 
 # Check if Hugo is installed
 if ! command -v hugo &> /dev/null; then
