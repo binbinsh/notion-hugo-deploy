@@ -22,8 +22,64 @@ class NotionPost:
 
 class NotionClient:
     def __init__(self, token: str, database_id: str):
-        self.client = Client(auth=token)
+        self.client = Client(auth=token, notion_version="2025-09-03")
         self.database_id = database_id
+        self._token = token
+        self._api_base = "https://api.notion.com/v1"
+        # Use latest header for endpoints requiring 2025-09-03 (data sources)
+        self._latest_headers = {
+            "Authorization": f"Bearer {token}",
+            "Notion-Version": "2025-09-03",
+            "Content-Type": "application/json",
+        }
+        # Cache for discovered data source id
+        self._data_source_id: Optional[str] = None
+
+    def _fetch_database_latest(self) -> Dict[str, Any]:
+        """Retrieve the database using the latest API version to access data_sources."""
+        url = f"{self._api_base}/databases/{self.database_id}"
+        resp = requests.get(url, headers=self._latest_headers, timeout=30)
+        resp.raise_for_status()
+        return resp.json()
+
+    def _ensure_data_source_id(self) -> str:
+        """Resolve and cache the data_source_id for the configured database.
+
+        If the database has multiple data sources, the first is used by default.
+        """
+        if self._data_source_id:
+            return self._data_source_id
+
+        database_obj = self._fetch_database_latest()
+        data_sources = database_obj.get("data_sources", []) or []
+        if not data_sources:
+            raise RuntimeError(
+                "No data_sources found for the database. Please ensure the database has a data source."
+            )
+        if len(data_sources) > 1:
+            logger.warning(
+                "Multiple data sources detected for this database; using the first one: %s",
+                data_sources[0].get("name") or data_sources[0].get("id"),
+            )
+        self._data_source_id = data_sources[0]["id"]
+        return self._data_source_id
+
+    def _query_data_source(self, *, filter: Optional[Dict[str, Any]] = None, page_size: Optional[int] = None) -> Dict[str, Any]:
+        """Query pages from the resolved data source using the new endpoint.
+
+        POST /v1/data_sources/{data_source_id}/query
+        """
+        data_source_id = self._ensure_data_source_id()
+        url = f"{self._api_base}/data_sources/{data_source_id}/query"
+        body: Dict[str, Any] = {}
+        if filter is not None:
+            body["filter"] = filter
+        if page_size is not None:
+            body["page_size"] = page_size
+
+        resp = requests.post(url, json=body, headers=self._latest_headers, timeout=60)
+        resp.raise_for_status()
+        return resp.json()
 
     def test_connection(self) -> Dict[str, Any]:
         """Test connection to Notion database"""
@@ -40,9 +96,9 @@ class NotionClient:
             user_info = self.client.users.me()
             logger.info(f"✅ Token is valid. Bot ID: {user_info['id']}")
 
-            # 2. Test database access
+            # 2. Test database access (latest version to access data_sources)
             logger.info(f"Testing database access: {self.database_id}")
-            database = self.client.databases.retrieve(database_id=self.database_id)
+            database = self._fetch_database_latest()
 
             # 3. Extract database information
             db_title = "Untitled"
@@ -84,12 +140,9 @@ class NotionClient:
                 result['warnings'].append(warning)
                 logger.warning(f"⚠️  {warning}")
 
-            # 6. Test query permissions
+            # 6. Test query permissions via data source
             logger.info("Testing query permissions...")
-            test_query = self.client.databases.query(
-                database_id=self.database_id,
-                page_size=1
-            )
+            test_query = self._query_data_source(page_size=1)
 
             total_posts = len(test_query.get('results', []))
             has_more = test_query.get('has_more', False)
@@ -143,8 +196,7 @@ class NotionClient:
         """Get database statistics"""
         try:
             # Query published posts
-            published_response = self.client.databases.query(
-                database_id=self.database_id,
+            published_response = self._query_data_source(
                 filter={
                     "property": "Published",
                     "checkbox": {"equals": True}
@@ -152,10 +204,7 @@ class NotionClient:
             )
 
             # Query all posts
-            all_response = self.client.databases.query(
-                database_id=self.database_id,
-                page_size=1
-            )
+            all_response = self._query_data_source(page_size=1)
 
             published_count = len(published_response.get('results', []))
 
@@ -179,8 +228,7 @@ class NotionClient:
     def get_published_posts(self) -> List[NotionPost]:
         """Get all published posts"""
         try:
-            response = self.client.databases.query(
-                database_id=self.database_id,
+            response = self._query_data_source(
                 filter={
                     "property": "Published",
                     "checkbox": {

@@ -5,7 +5,7 @@ Sync your Notion database to a Hugo static site. Write in Notion, publish with H
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
 [![Hugo](https://img.shields.io/badge/hugo-0.148.0%2B-ff4088.svg)](https://gohugo.io/)
-[![Notion API](https://img.shields.io/badge/Notion%20API-v2.4.0-black)](https://developers.notion.com/)
+[![Notion API](https://img.shields.io/badge/Notion%20API-2025--09--03-black)](https://developers.notion.com/docs/upgrade-guide-2025-09-03)
 
 ## ✨ Features
 
