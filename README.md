@@ -1,6 +1,6 @@
 # Notion-Hugo Deploy
 
-Sync your Notion database to a Hugo static site. Write in Notion, publish with Hugo.
+Write in Notion, publish with Hugo. Sync a Notion database to Hugo Markdown. Auto-deploy to Cloudflare Pages via GitHub Actions.
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
@@ -9,241 +9,104 @@ Sync your Notion database to a Hugo static site. Write in Notion, publish with H
 
 ## ✨ Features
 
-- **Full Notion support**: Paragraphs, headings, lists, code blocks, quotes, toggles, callouts
-- **Rich media handling**: Downloads and optimizes images, videos, audio
-- **Math support**: KaTeX/MathJax via `layouts/partials/math.html`
-- **Smart caching**: Updates only changed content
-- **Hugo flexibility**: Works with any theme (e.g., PaperInk)
-- **Performance**: Concurrent downloads, progress tracking
+- **Notion → Hugo Markdown**: Headings, lists, code, callouts, toggles, quotes
+- **Media downloads**: Images, videos, audio saved under `static/` and referenced correctly
+- **Math ready**: KaTeX partial included (`layouts/partials/math.html`)
+- **Smart updates**: Caches and updates only changed content
+- **Fast**: Concurrent downloads with progress
 
-## 📋 Prerequisites
+## 📋 Requirements
 
-- **Python**: 3.10 or higher
-- **Hugo**: Extended version recommended
-- **Notion**: Integration token and a database
+- Python 3.10+
+- Hugo (extended)
+- Notion integration token + a database
+- Cloudflare Pages Project
 
 ## 🚀 Quick Start
 
-### 1) Clone
+1) Clone
 
 ```bash
-git clone https://github.com/trainsh/notion-hugo-deploy.git
+git clone https://github.com/binbinsh/notion-hugo-deploy.git
 cd notion-hugo-deploy
 ```
 
-### 2) One-time setup (recommended)
+2) Notion + env
 
 ```bash
-./setup.sh
-```
+# Create integration at https://www.notion.so/my-integrations
+# Share your database with the integration
 
-This will:
-- Create `.env` from `.env.example` if present (otherwise create it manually)
-- Create required directories (`content/`, `static/`, `themes/`)
-- Create a virtualenv and install dependencies from root `requirements.txt`
-
-### 3) Notion integration
-
-1. Go to `https://www.notion.so/my-integrations`
-2. Create an integration and copy the Internal Integration Token
-3. Create a Notion database with properties:
-   - **Title** (Title)
-   - **Slug** (Text)
-   - **Date** (Date)
-   - **Tags** (Multi-select)
-   - **Published** (Checkbox)
-4. Share the database with your integration
-
-### 4) Environment variables
-
-Create `.env` in the project root with:
-
-```bash
+# In project root:
+cat > .env << 'EOF'
 NOTION_TOKEN=your_notion_integration_token
 NOTION_DATABASE_ID=your_database_id
+EOF
 ```
 
-### 5) Install dependencies (if you didn’t run setup.sh)
+3) Install (uv) and sync
 
 ```bash
 uv venv --python 3.10
 uv pip install -r requirements.txt
+
+# First sync (cleans existing posts)
+uv run scripts/notion_sync.py --clean
 ```
 
-### 6) Run locally
+4) Run Hugo locally
 
 ```bash
-# Sync content from Notion (clears existing posts first)
-python scripts/notion_sync.py --clean
-
-# Start Hugo dev server
 hugo server -D
 ```
 
-## 🔧 Configuration
+Tip: Prefer `uv run` for Python commands. Alternatively, you can run `./setup.sh` to prepare the environment once.
 
-### Hugo config
+## 🚢 GitHub Actions Auto Deploy
 
-Adjust `config.toml`:
+Automatic sync from Notion and deploy to Cloudflare Pages using GitHub Actions.
 
-```toml
-baseURL = "https://your-blog.example/"
-languageCode = "en-us"
-title = "My Blog"
-theme = "PaperInk"
+### 1) Add GitHub Actions Secrets
 
-[params]
-  math = true
-  description = "My personal blog powered by Notion"
+Path: Repository → Settings → Secrets and variables → Actions → New repository secret
 
-[markup]
-  [markup.highlight]
-    style = 'monokai'
-  [markup.goldmark.renderer]
-    unsafe = true
-```
+- `NOTION_TOKEN`: Notion Internal Integration Token
+- `NOTION_DATABASE_ID`: Notion database ID
+- `CLOUDFLARE_API_TOKEN`: Cloudflare API token with Pages write permissions
 
-### Math support
+### 2) Add GitHub Actions Variables
 
-This repo provides `layouts/partials/math.html`. Ensure your theme includes it (e.g., from `baseof.html`).
+Path: Repository → Settings → Secrets and variables → Actions → New repository variable
 
-Minimal include if you need to add it to a theme:
+- `CLOUDFLARE_ACCOUNT_ID` (required): Your Cloudflare Account ID
+- `CLOUDFLARE_PAGES_PROJECT` (required): Your Cloudflare Pages project name
 
-```html
-{{ if .Params.math }}
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
-<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
-<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
-{{ end }}
-```
+### 3) Workflow overview
 
-## 🐳 Docker
+Use a workflow (e.g., at `/.github/workflows/deploy.yml`) that:
 
-Build and run with Docker Compose:
+- Triggers on push to `main`, manual dispatch, or a schedule
+- Steps:
+  - Ensure `uv` and Hugo (extended) are available in the runner
+  - `uv run scripts/notion_sync.py --clean` to sync Notion content
+  - `hugo --minify` to build the site into `public/`
+  - `wrangler pages deploy ./public --project-name ${CLOUDFLARE_PAGES_PROJECT}` to deploy to Cloudflare Pages (uses the secrets/variables above)
 
-```bash
-docker-compose up
-```
+Tip: To reproduce locally, run the sync and build commands and confirm `public/` exists.
 
-Compose uses `${NOTION_TOKEN}` and `${NOTION_DATABASE_ID}` from your shell or `.env` file. It will sync and then build the site with `hugo --minify`.
+### 4) Where to get the values
 
-Run the image directly:
+- Notion database ID: From the database page URL (32-char ID)
+- Cloudflare Account ID: Cloudflare Dashboard → Overview
+- Cloudflare API token: Dashboard → API Tokens → Create Token (Pages write perms)
+- Cloudflare Pages project name: Pages project details
 
-```bash
-docker build -t notion-hugo-deploy .
-docker run \
-  -e NOTION_TOKEN=your_token \
-  -e NOTION_DATABASE_ID=your_db_id \
-  -v "$PWD/content":/app/content \
-  -v "$PWD/static":/app/static \
-  notion-hugo-deploy
-```
-
-## 🚢 Deployment: Cloudflare Pages (GitHub Actions)
-
-This repo includes a GitHub Actions workflow at `/.github/workflows/deploy.yml` that:
-
-- Syncs content from Notion
-- Builds the Hugo site using the PaperInk theme
-- Deploys to Cloudflare Pages using `cloudflare/wrangler-action@v3` and `wrangler pages deploy`
-
-Configure the following in your GitHub repository settings:
-
-- Secrets
-  - `NOTION_TOKEN`: Notion internal integration token
-  - `NOTION_DATABASE_ID`: Database ID from Notion
-  - `CLOUDFLARE_API_TOKEN`: Cloudflare API token with Pages write permissions
-  - `CLOUDFLARE_ACCOUNT_ID`: Your Cloudflare Account ID
-- Variables
-  - `CLOUDFLARE_PAGES_PROJECT`: Your Cloudflare Pages project name
-
-The workflow is triggered on pushes to `main`, on a 6-hourly schedule, and via manual dispatch. Output directory `public` is deployed via Wrangler.
-
-## 📁 Project Structure
-
-```
-notion-hugo-deploy/
-├── config.toml                 # Hugo config example
-├── content/                    # Generated posts
-│   └── posts/
-├── layouts/
-│   └── partials/
-│       └── math.html           # KaTeX support
-├── scripts/
-│   ├── cache_manager.py
-│   ├── concurrent_downloader.py
-│   ├── hugo_converter.py
-│   ├── logging_utils.py
-│   ├── media_handler.py
-│   ├── notion_service.py       # Notion API client/service
-│   ├── notion_sync.py          # Main sync script
-│   └── retry_decorator.py
-├── static/
-│   ├── images/
-│   ├── videos/
-│   └── audio/
-├── themes/                     # Hugo themes
-├── requirements.txt            # Python dependencies (root)
-├── Dockerfile                  # Docker build
-├── docker-compose.yml          # Docker Compose
-└── setup.sh                    # One-time setup helper
-```
-
-## 🛠️ Advanced
-
-- **Custom blocks**: Extend `scripts/hugo_converter.py`
-- **Media processing**: Adjust `scripts/media_handler.py`
-- **Caching**: See `scripts/cache_manager.py`
-
-## 🐛 Troubleshooting
-
-- **Math not rendering**: Ensure `math: true` in front matter and the partial is included by your theme
-- **Media download failures**: Check network, increase retries, verify Notion URLs
-- **Notion rate limits**: Slow down sync frequency
-
-### Debug logging
-
-Set the log level via environment variable (handled by `scripts/logging_utils.py`):
-
-```bash
-LOG_LEVEL=DEBUG python scripts/notion_sync.py
-```
-
-## 🤝 Contributing
-
-Contributions are welcome! Please open an issue to discuss major changes first.
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/YourFeature`)
-3. Commit (`git commit -m "feat: add YourFeature"`)
-4. Push (`git push origin feature/YourFeature`)
-5. Open a Pull Request
+See also: `cloudflare/wrangler-action` and Cloudflare Pages docs.
 
 ## 📄 License
 
-Copyright 2025 Binbin Shen
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at `http://www.apache.org/licenses/LICENSE-2.0`.
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-
-## 🙏 Acknowledgments
-
-- [Hugo](https://gohugo.io/)
-- [Notion API](https://developers.notion.com/)
-- [KaTeX](https://katex.org/)
+Apache-2.0. See `LICENSE` or `http://www.apache.org/licenses/LICENSE-2.0`.
 
 ## 📮 Support
 
-- Create an Issue: `https://github.com/trainsh/notion-hugo-deploy/issues`
-- Start a Discussion: `https://github.com/trainsh/notion-hugo-deploy/discussions`
-
----
-
-Made with ❤️ by [Binbin Shen](https://github.com/trainsh)
+Issues: `https://github.com/binbinsh/notion-hugo-deploy/issues`
