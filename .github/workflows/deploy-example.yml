@@ -59,6 +59,12 @@ jobs:
           echo "cache-primary-key=${{ steps.site-cache.outputs.cache-primary-key }}"
           echo "cache-hit=${{ steps.site-cache.outputs.cache-hit }}"
 
+      - name: Change cache ownership
+        if: steps.site-cache.outputs.cache-hit == 'true'
+        run: |
+          if [ -f .notion_cache.json ]; then sudo chown $(whoami) .notion_cache.json; fi
+          if [ -d static ]; then sudo chown -R $(whoami) static; fi
+
       - name: Sync posts from Notion
         env:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
@@ -87,7 +93,7 @@ jobs:
           key: ${{ steps.site-cache.outputs.cache-primary-key }}
 
       - name: Deploy to Cloudflare Pages
-        uses: cloudflare/wrangler-action@v4
+        uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
