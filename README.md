@@ -62,46 +62,35 @@ hugo server -D
 
 Tip: Prefer `uv run` for Python commands. Alternatively, you can run `./setup.sh` to prepare the environment once.
 
-## 🚢 GitHub Actions Auto Deploy
+## 🔀 Branch split: main vs trainsh
 
-Automatic sync from Notion and deploy to Cloudflare Pages using GitHub Actions.
+- **main (engine)**: generic Notion→Hugo toolchain. No site-specific config/assets.
+  - Uses `config.example.toml` as a template.
+  - GitHub Actions workflow is disabled (manual only, no deploy).
+- **trainsh (your site)**: production branch for `train.sh`.
+  - Contains site `config.toml` and `static/` assets (e.g., `favicon.ico`).
+  - Adds theme as submodule: `themes/hugo-trainsh`.
+  - Auto-deploys to Cloudflare Pages project `trainsh`.
 
-### 1) Add GitHub Actions Secrets
+Initialize locally for trainsh:
+```bash
+git checkout trainsh
+git submodule update --init --recursive
+```
 
-Path: Repository → Settings → Secrets and variables → Actions → New repository secret
+## 🚢 GitHub Actions Auto Deploy (trainsh)
 
-- `NOTION_TOKEN`: Notion Internal Integration Token
-- `NOTION_DATABASE_ID`: Notion database ID
-- `CLOUDFLARE_API_TOKEN`: Cloudflare API token with Pages write permissions
+Add GitHub Actions secrets:
+- `NOTION_TOKEN`
+- `NOTION_DATABASE_ID`
+- `CLOUDFLARE_API_TOKEN`
+- `CLOUDFLARE_ACCOUNT_ID`
 
-### 2) Add GitHub Actions Variables
+Deploy workflow: `.github/workflows/deploy-trainsh.yml` (push to `trainsh`, schedule, or manual)
 
-Path: Repository → Settings → Secrets and variables → Actions → New repository variable
-
-- `CLOUDFLARE_ACCOUNT_ID` (required): Your Cloudflare Account ID
-- `CLOUDFLARE_PAGES_PROJECT` (required): Your Cloudflare Pages project name
-
-### 3) Workflow overview
-
-Use a workflow (e.g., at `/.github/workflows/deploy.yml`) that:
-
-- Triggers on push to `main`, manual dispatch, or a schedule
-- Steps:
-  - Ensure `uv` and Hugo (extended) are available in the runner
-  - `uv run scripts/notion_sync.py --clean` to sync Notion content
-  - `hugo --minify` to build the site into `public/`
-  - `wrangler pages deploy ./public --project-name ${CLOUDFLARE_PAGES_PROJECT}` to deploy to Cloudflare Pages (uses the secrets/variables above)
-
-Tip: To reproduce locally, run the sync and build commands and confirm `public/` exists.
-
-### 4) Where to get the values
-
-- Notion database ID: From the database page URL (32-char ID)
-- Cloudflare Account ID: Cloudflare Dashboard → Overview
-- Cloudflare API token: Dashboard → API Tokens → Create Token (Pages write perms)
-- Cloudflare Pages project name: Pages project details
-
-See also: `cloudflare/wrangler-action` and Cloudflare Pages docs.
+Cloudflare Pages:
+- Project name: `trainsh`
+- Recommended: set Production branch to `trainsh` in Dashboard
 
 ## 📄 License
 
