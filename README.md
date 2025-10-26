@@ -126,8 +126,18 @@ hugo server -D
   - Notion-hosted files use the file UUID as the filename, so re-runs won’t re-download the same file even if the signed URL changes.
   - External URLs are keyed by the URL; if the file already exists locally, it is reused.
 - State: `.notion_cache.json` records media mappings and last sync time.
-- CI cache: the example workflow restores/saves cache for `.notion_cache.json` and `static/*` so unchanged media aren’t re-downloaded between runs.
-- Markdown: posts are regenerated each run; `content/posts` is not cached by default.
+- CI cache: the workflow restores/saves cache for `.notion_cache.json` and `static/*` so unchanged media aren’t re-downloaded between runs.
+
+## 🖼️ HTML rendering in content
+
+This project’s converter intentionally outputs HTML for images, videos, audio and links (e.g. `<figure>`, `<img>`, `<video>`, `<audio>`, `<a>`), to provide better control and compatibility. To render these safely from trusted Notion content, enable Goldmark’s unsafe HTML rendering in your site config:
+
+```toml
+[markup.goldmark.renderer]
+  unsafe = true
+```
+
+If you prefer to avoid `unsafe = true`, you can modify the converter to emit pure Markdown for images/links (losing some HTML-only features like `target="_blank"`) or rely on theme render hooks.
 
 ## 👤 Author & Links
 

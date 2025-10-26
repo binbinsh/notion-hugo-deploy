@@ -46,7 +46,7 @@ jobs:
             static/images
             static/videos
             static/audio
-          key: site-${{ github.ref_name }}-${{ github.sha }}
+          key: site-${{ github.ref_name }}-media-v1
           restore-keys: |
             site-${{ github.ref_name }}-
 
@@ -75,13 +75,14 @@ jobs:
             static/images
             static/videos
             static/audio
-          key: site-${{ github.ref_name }}-${{ github.run_id }}
+          key: ${{ steps.site-cache.outputs.cache-primary-key }}
 
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy ./public --project-name ${{ vars.CLOUDFLARE_PAGES_PROJECT }} --branch ${{ github.ref_name }}
+          command: pages deploy ./public --project-name ${{ vars.CLOUDFLARE_PAGES_PROJECT }} --branch main
+
 
 
