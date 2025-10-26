@@ -1,7 +1,7 @@
-baseURL = 'https://train.sh/'
+baseURL = 'https://example.com/'
 languageCode = 'en-us'
-title = 'Welcome to train.sh'
-theme = 'PaperInk'
+title = 'Your Site Title'
+theme = 'your-theme' # replace with your theme name
 hasCJKLanguage = true
 enableEmoji = true
 
@@ -15,8 +15,8 @@ timeZone = 'Asia/Shanghai'
   pagerSize = 10
 
 [params]
-  description = "This blog covers artificial intelligence, productivity, and personal insights."
-  author = "Binbin Shen"
+  description = "Short description of your site"
+  author = "Your Name"
   ShowReadingTime = true
   ShowCodeCopyButtons = true
   ShowPostNavLinks = false
@@ -28,12 +28,12 @@ timeZone = 'Asia/Shanghai'
 [params.homeInfoParams]
   Title = "👋 Welcome"
   Content = """
-  A personal space where I document my learning journey in artificial intelligence, share productivity experiments, and record thoughts on technology and life. Nothing groundbreaking here, just notes and reflections from someone trying to make sense of things over time.<br/>
+  Intro text for your homepage.
   """
 
 [[params.socialIcons]]
   name = "email"
-  url = "mailto:hello@train.sh"
+  url = "mailto:you@example.com"
 
 [params.fuseOpts]
   isCaseSensitive = false
@@ -91,3 +91,5 @@ timeZone = 'Asia/Shanghai'
     taskList = true
   [markup.goldmark.parser]
     attribute = true
+
+
