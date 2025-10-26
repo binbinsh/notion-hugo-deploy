@@ -64,7 +64,7 @@ class NotionClient:
         self._data_source_id = data_sources[0]["id"]
         return self._data_source_id
 
-    def _query_data_source(self, *, filter: Optional[Dict[str, Any]] = None, page_size: Optional[int] = None) -> Dict[str, Any]:
+    def _query_data_source(self, *, filter: Optional[Dict[str, Any]] = None, page_size: Optional[int] = None, start_cursor: Optional[str] = None) -> Dict[str, Any]:
         """Query pages from the resolved data source using the new endpoint.
 
         POST /v1/data_sources/{data_source_id}/query
@@ -76,10 +76,29 @@ class NotionClient:
             body["filter"] = filter
         if page_size is not None:
             body["page_size"] = page_size
+        if start_cursor is not None:
+            body["start_cursor"] = start_cursor
 
         resp = requests.post(url, json=body, headers=self._latest_headers, timeout=60)
         resp.raise_for_status()
         return resp.json()
+
+    def _fetch_data_source(self, data_source_id: Optional[str] = None) -> Dict[str, Any]:
+        """Retrieve the data source object using the latest API version.
+
+        This is required because the database properties are now exposed
+        at the data source layer in the latest Notion API.
+        """
+        ds_id = data_source_id or self._ensure_data_source_id()
+        url = f"{self._api_base}/data_sources/{ds_id}"
+        resp = requests.get(url, headers=self._latest_headers, timeout=30)
+        resp.raise_for_status()
+        return resp.json()
+
+    def get_database_properties(self) -> Dict[str, Any]:
+        """Return database properties exclusively from the data source."""
+        data_source = self._fetch_data_source()
+        return data_source.get("properties", {})
 
     def test_connection(self) -> Dict[str, Any]:
         """Test connection to Notion database"""
@@ -107,8 +126,9 @@ class NotionClient:
 
             logger.info(f"✅ Successfully connected to database: {db_title}")
 
-            # 4. Check required properties
-            properties = database.get('properties', {})
+            # 4. Check required properties (use data source schema first)
+            properties = self.get_database_properties()
+            logger.info(f"Database properties: {properties}")
             required_props = {
                 'Title': 'title',
                 'Published': 'checkbox',
@@ -226,22 +246,31 @@ class NotionClient:
 
     @retry(max_attempts=3, delay=2, exceptions=(requests.RequestException,))
     def get_published_posts(self) -> List[NotionPost]:
-        """Get all published posts"""
+        """Get all published posts (paginated)."""
         try:
-            response = self._query_data_source(
-                filter={
-                    "property": "Published",
-                    "checkbox": {
-                        "equals": True
-                    }
-                }
-            )
+            posts: List[NotionPost] = []
+            start_cursor: Optional[str] = None
 
-            posts = []
-            for page in response['results']:
-                post = self._parse_page(page)
-                if post:
-                    posts.append(post)
+            while True:
+                response = self._query_data_source(
+                    filter={
+                        "property": "Published",
+                        "checkbox": {"equals": True}
+                    },
+                    page_size=100,
+                    start_cursor=start_cursor
+                )
+
+                for page in response.get('results', []):
+                    post = self._parse_page(page)
+                    if post:
+                        posts.append(post)
+
+                if response.get('has_more'):
+                    start_cursor = response.get('next_cursor')
+                else:
+                    break
+
 
             return posts
         except Exception as e:
