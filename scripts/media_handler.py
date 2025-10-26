@@ -26,8 +26,14 @@ class MediaHandler:
         try:
             if self.cache_manager:
                 cached_path = self.cache_manager.get_cached_media(url)
-                if cached_path and os.path.exists(cached_path.lstrip('/')):
-                    return cached_path
+                if cached_path:
+                    # cached_path is stored as site-relative (e.g., "/images/<file>")
+                    abs_cached = os.path.join(self.static_dir, cached_path.lstrip('/'))
+                    if os.path.exists(abs_cached):
+                        logger.debug(f"Cache hit for {media_type}: {url} -> {cached_path}")
+                        return cached_path
+                    else:
+                        logger.debug(f"Cache entry exists but file missing: {cached_path}; re-downloading")
 
             # Generate stable filename (prefers Notion file UUID when available)
             filename = self._generate_filename(url)
@@ -51,6 +57,7 @@ class MediaHandler:
             if os.path.exists(file_path):
                 if self.cache_manager:
                     self.cache_manager.cache_media(url, relative_path)
+                logger.debug(f"Using existing {media_type} file: {file_path}")
                 return relative_path
 
             # Download file
@@ -71,6 +78,7 @@ class MediaHandler:
             # Update cache after successful download
             if self.cache_manager and relative_path:
                 self.cache_manager.cache_media(url, relative_path)
+                logger.debug(f"Cached mapping: {url} -> {relative_path}")
 
             return relative_path
 

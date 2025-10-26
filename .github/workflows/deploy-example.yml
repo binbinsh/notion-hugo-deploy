@@ -4,6 +4,10 @@
 
 name: Deploy Example (Cloudflare Pages)
 
+concurrency:
+  group: site-${{ github.ref_name }}-media-v1
+  cancel-in-progress: false
+
 on:
   # Enable these when ready:
   # push:
@@ -50,10 +54,16 @@ jobs:
           restore-keys: |
             site-${{ github.ref_name }}-
 
+      - name: Log cache status
+        run: |
+          echo "cache-primary-key=${{ steps.site-cache.outputs.cache-primary-key }}"
+          echo "cache-hit=${{ steps.site-cache.outputs.cache-hit }}"
+
       - name: Sync posts from Notion
         env:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
           NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
+          LOG_LEVEL: DEBUG
         run: |
           uv run scripts/notion_sync.py
 
@@ -67,7 +77,7 @@ jobs:
         run: hugo --minify
 
       - name: Save site cache
-        if: always()
+        if: always() && steps.site-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
           path: |
