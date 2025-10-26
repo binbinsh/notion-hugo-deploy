@@ -10,6 +10,7 @@ from notion_service import NotionClient
 from hugo_converter import HugoConverter
 from media_handler import MediaHandler
 from logging_utils import setup_logging
+from cache_manager import CacheManager
 
 # Configure logging
 setup_logging()
@@ -77,7 +78,8 @@ def main():
     try:
         # Initialize components
         notion_client = NotionClient(args.notion_token, args.database_id)
-        media_handler = MediaHandler(args.static_dir)
+        cache_manager = CacheManager()
+        media_handler = MediaHandler(args.static_dir, cache_manager=cache_manager)
         hugo_converter = HugoConverter(args.content_dir, media_handler)
 
         # Test connection
@@ -89,7 +91,7 @@ def main():
             logger.info("Cleaning existing posts...")
             hugo_converter.clean_posts_directory()
 
-        # Fetch Notion posts
+        # Fetch Notion posts (includes blocks to regenerate Markdown each run)
         logger.info("Fetching posts from Notion...")
         posts = notion_client.get_published_posts()
         logger.info(f"Found {len(posts)} published posts")
@@ -114,12 +116,18 @@ def main():
                 pbar.set_description(f"Converting: {post.title[:30]}...")
                 if hugo_converter.convert_post(post):
                     success_count += 1
+                    # Update per-post cache after successful conversion
+                    cache_manager.update_post_cache(post.id, post.last_edited)
                 pbar.update(1)
             else:
                 logger.error(f"Failed to convert: {post.title}")
 
         # Summarize results
         logger.info(f"Successfully converted {success_count}/{len(posts)} posts")
+
+        # Update last sync and persist cache
+        cache_manager.update_last_sync()
+        cache_manager.save_cache()
 
         if success_count < len(posts):
             sys.exit(1)

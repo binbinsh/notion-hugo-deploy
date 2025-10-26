@@ -1,6 +1,7 @@
 import os
 import requests
 import hashlib
+import re
 from urllib.parse import urlparse, unquote
 from typing import Optional, Tuple
 from PIL import Image
@@ -28,7 +29,7 @@ class MediaHandler:
                 if cached_path and os.path.exists(cached_path.lstrip('/')):
                     return cached_path
 
-            # Generate filename
+            # Generate stable filename (prefers Notion file UUID when available)
             filename = self._generate_filename(url)
 
             # Determine save directory
@@ -46,8 +47,10 @@ class MediaHandler:
 
             file_path = os.path.join(save_dir, filename)
 
-            # If file already exists, return directly
+            # If file exists, backfill cache and return
             if os.path.exists(file_path):
+                if self.cache_manager:
+                    self.cache_manager.cache_media(url, relative_path)
                 return relative_path
 
             # Download file
@@ -76,19 +79,28 @@ class MediaHandler:
             return url  # Return original URL on failure
 
     def _generate_filename(self, url: str) -> str:
-        """Generate a unique filename"""
-        # Extract original filename from URL
+        """Generate a stable filename for the URL.
+
+        - For Notion-hosted files, use the file UUID as the basename.
+        - For external files, use md5(url) prefix and preserve extension when possible.
+        """
+        # Extract parts
         parsed = urlparse(url)
         original_name = os.path.basename(unquote(parsed.path))
-
-        # Use hash of URL if no filename present
-        if not original_name or '.' not in original_name:
-            hash_name = hashlib.md5(url.encode()).hexdigest()[:8]
-            return f"{hash_name}.jpg"  # 默认假设是jpg
-
-        # Keep original extension but use hash as filename to avoid conflicts
         _, ext = os.path.splitext(original_name)
+
+        # Try Notion S3 stable UUID
+        m = re.search(r"secure\.notion-static\.com/([0-9a-fA-F\-]{36})/", url)
+        if m:
+            file_uuid = m.group(1).lower()
+            if not ext:
+                ext = ".jpg"
+            return f"{file_uuid}{ext}"
+
+        # External: md5(url) with best-guess extension
         hash_name = hashlib.md5(url.encode()).hexdigest()[:8]
+        if not ext:
+            ext = ".jpg"
         return f"{hash_name}{ext}"
 
     def _optimize_image(self, file_path: str, max_width: int = 1920):

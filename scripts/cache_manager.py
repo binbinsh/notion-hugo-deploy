@@ -1,5 +1,7 @@
 import json
 import os
+import re
+import hashlib
 from datetime import datetime
 from typing import Dict, Optional
 
@@ -40,13 +42,37 @@ class CacheManager:
         self.cache_data["posts"][post_id] = last_edited.isoformat()
 
     def get_cached_media(self, url: str) -> Optional[str]:
-        """Get cached media file path"""
-        return self.cache_data["media"].get(url)
+        """Get cached media file path by normalized media key."""
+        key = self.normalize_media_key(url)
+        media = self.cache_data.get("media", {})
+        return media.get(key)
 
     def cache_media(self, url: str, local_path: str):
-        """Cache media file path"""
-        self.cache_data["media"][url] = local_path
+        """Cache media file path using normalized media key"""
+        key = self.normalize_media_key(url)
+        self.cache_data.setdefault("media", {})[key] = local_path
 
     def update_last_sync(self):
         """Update last sync time"""
         self.cache_data["last_sync"] = datetime.now().isoformat()
+
+    def get_last_sync(self) -> Optional[datetime]:
+        """Get last sync time as datetime if present"""
+        value = self.cache_data.get("last_sync")
+        if not value:
+            return None
+        try:
+            return datetime.fromisoformat(value)
+        except Exception:
+            return None
+
+    def normalize_media_key(self, url: str) -> str:
+        """Return a stable key for media URLs.
+
+        - Notion-hosted: notion:<uuid>
+        - External: url:<md5(url)>
+        """
+        m = re.search(r"secure\.notion-static\.com/([0-9a-fA-F\-]{36})/", url)
+        if m:
+            return f"notion:{m.group(1).lower()}"
+        return f"url:{hashlib.md5(url.encode()).hexdigest()}"

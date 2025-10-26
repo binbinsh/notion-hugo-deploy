@@ -1,32 +1,10 @@
-# Hugo
 /public/
-/resources/_gen/
-/assets/jsconfig.json
-hugo_stats.json
+/resources/
+uv.lock
 .hugo_build.lock
-
-# Hugo themes (user installed)
-/themes/
-
-# Python
 __pycache__/
-*.py[cod]
 .venv/
-venv/
-
-# Environment variables
 .env
-
-# Generated content
-/static/images/
-/static/videos/
-/static/audio/
-/content/posts/
-
-# IDE
 .vscode/
-.idea/
-
-# OS
 .DS_Store
 Thumbs.db

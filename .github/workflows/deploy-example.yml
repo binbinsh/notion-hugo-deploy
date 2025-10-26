@@ -37,12 +37,25 @@ jobs:
           uv venv --python 3.10
           uv pip install -r requirements.txt
 
+      - name: Restore site cache (media and state)
+        uses: actions/cache/restore@v4
+        id: site-cache
+        with:
+          path: |
+            .notion_cache.json
+            static/images
+            static/videos
+            static/audio
+          key: site-${{ github.ref_name }}-${{ github.sha }}
+          restore-keys: |
+            site-${{ github.ref_name }}-
+
       - name: Sync posts from Notion
         env:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
           NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
         run: |
-          uv run scripts/notion_sync.py --clean
+          uv run scripts/notion_sync.py
 
       - name: Setup Hugo
         uses: peaceiris/actions-hugo@v2
@@ -52,6 +65,17 @@ jobs:
 
       - name: Build Hugo site
         run: hugo --minify
+
+      - name: Save site cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            .notion_cache.json
+            static/images
+            static/videos
+            static/audio
+          key: site-${{ github.ref_name }}-${{ github.run_id }}
 
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3

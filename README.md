@@ -7,13 +7,12 @@ Write in Notion, publish with Hugo. Sync a Notion database to Hugo Markdown. Aut
 [![Hugo](https://img.shields.io/badge/hugo-0.148.0%2B-ff4088.svg)](https://gohugo.io/)
 [![Notion API](https://img.shields.io/badge/Notion%20API-2025--09--03-black)](https://developers.notion.com/docs/upgrade-guide-2025-09-03)
 
-## ✨ Features
+## ✨ What it does
 
-- **Notion → Hugo Markdown**: Headings, lists, code, callouts, toggles, quotes
-- **Media downloads**: Images, videos, audio saved under `static/` and referenced correctly
-- **Math ready**: KaTeX partial included (`layouts/partials/math.html`)
-- **Smart updates**: Caches and updates only changed content
-- **Fast**: Concurrent downloads with progress
+- **Sync Notion → Hugo Markdown** (titles, dates, tags, rich text)
+- **Download media** to `static/` and update references
+- **Incremental updates** with caching
+- **CI/CD to Cloudflare Pages** via GitHub Actions
 
 ## 📋 Requirements
 
@@ -22,82 +21,116 @@ Write in Notion, publish with Hugo. Sync a Notion database to Hugo Markdown. Aut
 - Notion integration token + a database
 - Cloudflare Pages Project
 
-## 🚀 Quick Start
+## 🚀 Usage
 
-1) Clone
+Follow these six steps to set up a new site from this repo.
+
+1) Clone and create a branch
 
 ```bash
 git clone https://github.com/binbinsh/notion-hugo-deploy.git
 cd notion-hugo-deploy
+git checkout -b my-site
 ```
 
-2) Notion + env
+2) Initialize a Hugo site at the repo root
+
+Use `--force` because the directory is not empty.
 
 ```bash
-# Create integration at https://www.notion.so/my-integrations
-# Share your database with the integration
-
-# In project root:
-cat > .env << 'EOF'
-NOTION_TOKEN=your_notion_integration_token
-NOTION_DATABASE_ID=your_database_id
-EOF
+hugo new site . --force
 ```
 
-3) Install (uv) and sync
+Create a minimal config (choose one filename; example uses TOML):
+
+```toml
+baseURL = "https://<your-domain>"
+languageCode = "en-us"
+title = "My Blog"
+theme = "hugo-trainsh"
+```
+
+3) Add a theme via git submodule (example: binbinsh/hugo-trainsh)
+
+```bash
+git submodule add https://github.com/binbinsh/hugo-trainsh.git themes/hugo-trainsh
+git submodule update --init --recursive
+```
+
+4) Set up Cloudflare Pages and GitHub secrets/vars
+
+- Create a Pages project and an API token in your Cloudflare account.
+- In your GitHub repository Settings → Secrets and variables:
+  - Secrets: `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`
+  - Variables: `CLOUDFLARE_PAGES_PROJECT` (your Pages project name)
+- Reference: [Cloudflare Pages](https://pages.cloudflare.com/)
+
+5) Create a Notion integration and configure your Blog database
+
+- Create an integration and copy its Internal Integration Token.
+- Add/ensure the following database properties (names/types):
+  - `Title` (title)
+  - `Published` (checkbox)
+  - `Date` (date)
+  - `Slug` (rich_text)
+  - `Tags` (multi_select)
+- Share the database with the integration.
+- In GitHub repository Secrets, add:
+  - `NOTION_TOKEN`
+  - `NOTION_DATABASE_ID`
+- Reference: [Notion Integrations](https://www.notion.so/profile/integrations)
+
+6) Enable GitHub Actions from the example workflow
+
+- Copy the example to your active workflow:
+
+```bash
+cp .github/workflows/deploy-example.yml .github/workflows/deploy.yml
+```
+
+- In `.github/workflows/deploy.yml`, enable triggers, e.g. push to your branch:
+
+```yaml
+on:
+  push:
+    branches: [ my-site ]
+```
+
+The workflow uses `uv` to install dependencies, runs `uv run scripts/notion_sync.py`, builds with Hugo, and deploys with `cloudflare/wrangler-action@v3` to your Cloudflare Pages project.
+
+Optional: run locally before pushing
 
 ```bash
 uv venv --python 3.10
 uv pip install -r requirements.txt
-
-# First sync (cleans existing posts)
-uv run scripts/notion_sync.py --clean
-```
-
-4) Run Hugo locally
-
-```bash
+uv run scripts/notion_sync.py
 hugo server -D
+
+# Tip: For a full rebuild locally, you can pass --clean once
+# uv run scripts/notion_sync.py --clean
 ```
 
-Tip: Prefer `uv run` for Python commands. Alternatively, you can run `./setup.sh` to prepare the environment once.
+## 🧩 Secrets and variables recap
 
-## 🔀 Branch split: main vs trainsh
+- GitHub Secrets:
+  - `NOTION_TOKEN`
+  - `NOTION_DATABASE_ID`
+  - `CLOUDFLARE_API_TOKEN`
+  - `CLOUDFLARE_ACCOUNT_ID`
+- GitHub Variables:
+  - `CLOUDFLARE_PAGES_PROJECT`
 
-- **main (engine)**: generic Notion→Hugo toolchain. No site-specific config/assets.
-  - Uses `config.example.toml` as a template.
-  - GitHub Actions workflow is disabled (manual only, no deploy).
-- **trainsh (your site)**: production branch for `train.sh`.
-  - Contains site `config.toml` and `static/` assets (e.g., `favicon.ico`).
-  - Adds theme as submodule: `themes/hugo-trainsh`.
-  - Auto-deploys to Cloudflare Pages project `trainsh`.
+## 🧠 Caching & Incremental Sync
 
-Initialize locally for trainsh:
-```bash
-git checkout trainsh
-git submodule update --init --recursive
-```
+- Media cache: images/videos/audio are stored under `static/` using stable filenames.
+  - Notion-hosted files use the file UUID as the filename, so re-runs won’t re-download the same file even if the signed URL changes.
+  - External URLs are keyed by the URL; if the file already exists locally, it is reused.
+- State: `.notion_cache.json` records media mappings and last sync time.
+- CI cache: the example workflow restores/saves cache for `.notion_cache.json` and `static/*` so unchanged media aren’t re-downloaded between runs.
+- Markdown: posts are regenerated each run; `content/posts` is not cached by default.
 
-## 🚢 GitHub Actions Auto Deploy (trainsh)
+## 👤 Author & Links
 
-Add GitHub Actions secrets:
-- `NOTION_TOKEN`
-- `NOTION_DATABASE_ID`
-- `CLOUDFLARE_API_TOKEN`
-- `CLOUDFLARE_ACCOUNT_ID`
-
-Deploy workflow: `.github/workflows/deploy-trainsh.yml` (push to `trainsh`, schedule, or manual)
-
-For a generic example on main, see `.github/workflows/deploy-example.yml`.
-
-Cloudflare Pages:
-- Project name: `trainsh`
-- Recommended: set Production branch to `trainsh` in Dashboard
-
-## 📄 License
-
-Apache-2.0. See `LICENSE` or `http://www.apache.org/licenses/LICENSE-2.0`.
-
-## 📮 Support
-
-Issues: `https://github.com/binbinsh/notion-hugo-deploy/issues`
+- Author: [Binbin Shen](https://github.com/binbinsh)
+- Issues: https://github.com/binbinsh/notion-hugo-deploy/issues
+- License: http://www.apache.org/licenses/LICENSE-2.0
