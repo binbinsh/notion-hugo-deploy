@@ -1,4 +1,4 @@
-name: Deploy Blog (disabled on main)
+name: Deploy Blog (see deploy-example.yml)
 
 on:
   workflow_dispatch:
@@ -8,4 +8,4 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Info
-        run: echo "Main branch is engine-only. Use trainsh branch for deployments."
+        run: echo "This is a placeholder. See .github/workflows/deploy-example.yml for Cloudflare Pages deployment."

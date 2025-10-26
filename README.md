@@ -88,6 +88,8 @@ Add GitHub Actions secrets:
 
 Deploy workflow: `.github/workflows/deploy-trainsh.yml` (push to `trainsh`, schedule, or manual)
 
+For a generic example on main, see `.github/workflows/deploy-example.yml`.
+
 Cloudflare Pages:
 - Project name: `trainsh`
 - Recommended: set Production branch to `trainsh` in Dashboard
