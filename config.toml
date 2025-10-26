@@ -60,6 +60,8 @@ moreText = "View all posts"
 block = true
 
 [markup]
+  [markup.goldmark.renderer]
+    unsafe = true
   [markup.highlight]
     # Enable line numbers and render them in a table
     lineNos = true
