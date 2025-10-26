@@ -54,11 +54,16 @@ jobs:
           echo "cache-primary-key=${{ steps.site-cache.outputs.cache-primary-key }}"
           echo "cache-hit=${{ steps.site-cache.outputs.cache-hit }}"
 
+      - name: Change cache ownership
+        if: steps.site-cache.outputs.cache-hit == 'true'
+        run: |
+          if [ -f .notion_cache.json ]; then sudo chown $(whoami) .notion_cache.json; fi
+          if [ -d static ]; then sudo chown -R $(whoami) static; fi
+
       - name: Sync posts from Notion
         env:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
           NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
-          LOG_LEVEL: DEBUG
         run: |
           uv run scripts/notion_sync.py
 

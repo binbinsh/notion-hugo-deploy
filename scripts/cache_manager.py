@@ -56,22 +56,35 @@ class CacheManager:
         """Update post cache"""
         self.cache_data["posts"][post_id] = last_edited.isoformat()
 
-    def get_cached_media(self, url: str) -> Optional[str]:
-        """Get cached media file path by normalized media key."""
+    def get_cached_media(self, url: str, last_edited_time: Optional[str] = None) -> Optional[str]:
+        """Get cached media file path by normalized media key if it hasn't been updated."""
         key = self.normalize_media_key(url)
         media = self.cache_data.get("media", {})
-        value = media.get(key)
-        if value:
-            logging.getLogger(__name__).debug(f"Cache lookup HIT for media key {key} -> {value}")
-        else:
-            logging.getLogger(__name__).debug(f"Cache lookup MISS for media key {key}")
-        return value
+        cached_item = media.get(key)
+        
+        if not cached_item:
+            logging.getLogger(__name__).debug(f"Cache MISS (not found): {key}")
+            return None
+        
+        # Get cached path and timestamp
+        cached_path = cached_item.get("path")
+        cached_time = cached_item.get("last_edited_time")
+        
+        if last_edited_time and cached_time and last_edited_time != cached_time:
+            logging.getLogger(__name__).debug(f"Cache MISS (timestamp changed): {key} - cached: {cached_time}, current: {last_edited_time}")
+            return None
+        
+        logging.getLogger(__name__).debug(f"Cache HIT: {key} -> {cached_path}")
+        return cached_path
 
-    def cache_media(self, url: str, local_path: str):
-        """Cache media file path using normalized media key"""
+    def cache_media(self, url: str, local_path: str, last_edited_time: Optional[str] = None):
+        """Cache media file path using normalized media key with timestamp"""
         key = self.normalize_media_key(url)
-        self.cache_data.setdefault("media", {})[key] = local_path
-        logging.getLogger(__name__).debug(f"Cached media key {key} -> {local_path}")
+        self.cache_data.setdefault("media", {})[key] = {
+            "path": local_path,
+            "last_edited_time": last_edited_time
+        }
+        logging.getLogger(__name__).debug(f"Cached media key {key} -> {local_path} (last_edited: {last_edited_time})")
 
     def update_last_sync(self):
         """Update last sync time"""
@@ -91,9 +104,16 @@ class CacheManager:
     def normalize_media_key(self, url: str) -> str:
         """Return a stable key for media URLs.
 
-        - Notion-hosted: notion:<uuid>
+        - Notion-hosted (s3): notion:<uuid>/<uuid>
+        - Notion-hosted (static): notion:<uuid>
         - External: url:<md5(url)>
         """
+        # New S3-style URLs, e.g., prod-files-secure.s3.us-west-2.amazonaws.com/{uuid}/{uuid}/...
+        s3_match = re.search(r"s3\..*\.amazonaws\.com/([0-9a-fA-F\-]{36})/([0-9a-fA-F\-]{36})/", url)
+        if s3_match:
+            return f"notion:{s3_match.group(1).lower()}/{s3_match.group(2).lower()}"
+
+        # Legacy notion-static URLs
         m = re.search(r"secure\.notion-static\.com/([0-9a-fA-F\-]{36})/", url)
         if m:
             return f"notion:{m.group(1).lower()}"
