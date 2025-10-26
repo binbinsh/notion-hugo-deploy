@@ -26,7 +26,7 @@ preserveTaxonomyNames = false
 
 [params.home.tags]
 # Set to 0 or negative to show all tags
-limit = 15
+limit = 8
 showCount = true
 
 [params.home.recent]
