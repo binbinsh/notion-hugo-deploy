@@ -109,6 +109,7 @@ class NotionClient:
 
             # 4. Check required properties
             properties = database.get('properties', {})
+            logger.info(f"Database properties: {properties}")
             required_props = {
                 'Title': 'title',
                 'Published': 'checkbox',
