@@ -1,7 +1,7 @@
 import os
 import re
 import yaml
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import logging
 
 logger = logging.getLogger(__name__)
@@ -218,6 +218,10 @@ class HugoConverter:
         text = self._rich_text_to_markdown(quote.get('rich_text', []))
         lines = text.split('\n')
         return '\n'.join(f"> {line}" for line in lines)
+    
+    def _get_block_last_edited_time(self, block: Dict[str, Any]) -> Optional[str]:
+        """Extract last_edited_time from a block if available"""
+        return block.get('last_edited_time')
 
     def _convert_image(self, block: Dict[str, Any]) -> str:
         """Convert image"""
@@ -233,8 +237,9 @@ class HugoConverter:
         if not url:
             return ""
 
-        # Download image
-        local_path = self.media_handler.download_media(url, "image")
+        # Download image with last_edited_time for cache invalidation
+        last_edited_time = self._get_block_last_edited_time(block)
+        local_path = self.media_handler.download_media(url, "image", last_edited_time)
 
         # Get caption
         caption = ""
@@ -265,7 +270,8 @@ class HugoConverter:
             # Download video file
             url = video_info.get('file', {}).get('url', '')
             if url:
-                local_path = self.media_handler.download_media(url, "video")
+                last_edited_time = self._get_block_last_edited_time(block)
+                local_path = self.media_handler.download_media(url, "video", last_edited_time)
                 return f'<video controls style="width: 100%; max-width: 800px;">\n  <source src="{local_path}">\n</video>'
 
         return ""
@@ -282,7 +288,8 @@ class HugoConverter:
             url = audio_info.get('file', {}).get('url', '')
             if url:
                 # Download audio file
-                local_path = self.media_handler.download_media(url, "audio")
+                last_edited_time = self._get_block_last_edited_time(block)
+                local_path = self.media_handler.download_media(url, "audio", last_edited_time)
                 url = local_path
 
         if url:
@@ -442,7 +449,8 @@ class HugoConverter:
                         if not url:
                             continue
                         # Download and build HTML directly so Markdown is not nested inside HTML
-                        local_path = self.media_handler.download_media(url, "image")
+                        child_last_edited_time = self._get_block_last_edited_time(child)
+                        local_path = self.media_handler.download_media(url, "image", child_last_edited_time)
                         caption = ""
                         if image_info.get('caption'):
                             caption = self._rich_text_to_plain_text(image_info['caption'])
@@ -486,8 +494,9 @@ class HugoConverter:
         if not url:
             return ""
 
-        # Download image
-        local_path = self.media_handler.download_media(url, "image")
+        # Download image with last_edited_time for cache invalidation
+        last_edited_time = self._get_block_last_edited_time(block)
+        local_path = self.media_handler.download_media(url, "image", last_edited_time)
 
         # Get caption (plain for alt, markdown for figcaption)
         plain_caption = ""
